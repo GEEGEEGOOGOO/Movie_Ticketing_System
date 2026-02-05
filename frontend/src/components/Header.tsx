@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useLocationStore } from '../store/locationStore'
+import LocationModal from './LocationModal'
 
 interface Breadcrumb {
   label: string
@@ -15,6 +17,8 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const { city, requestLocationAndSave, isLoading } = useLocationStore()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isLoggedIn = !!localStorage.getItem('token')
 
@@ -22,6 +26,13 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     navigate('/login')
+  }
+
+  const handleLocationClick = async () => {
+    // First try to get GPS location
+    await requestLocationAndSave()
+    // If GPS fails or user wants to change, show modal
+    setShowLocationModal(true)
   }
 
   const getInitials = (name: string) => {
@@ -69,10 +80,14 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
             </div>
           ) : (
             <nav className="hidden lg:flex items-center gap-8">
-              <Link to="/home" className="text-sm font-medium text-primary-light hover:text-white transition-colors flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[18px]">location_on</span>
-                New York
-              </Link>
+              <button 
+                onClick={handleLocationClick}
+                disabled={isLoading}
+                className="text-sm font-medium text-primary-light hover:text-white transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">{isLoading ? 'refresh' : 'location_on'}</span>
+                {isLoading ? 'Getting location...' : (city || 'Get Location')}
+              </button>
               <Link to="/movies" className="text-sm font-medium text-white hover:text-primary-light transition-colors">Movies</Link>
               <Link to="/home" className="text-sm font-medium text-white hover:text-primary-light transition-colors">Cinemas</Link>
               <Link to="/home" className="text-sm font-medium text-white hover:text-primary-light transition-colors">Offers</Link>
@@ -148,7 +163,14 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
                   onKeyDown={(e) => e.key === 'Enter' && searchQuery && navigate(`/movies?q=${searchQuery}`)}
                 />
               </div>
-              <Link to="/home" className="text-base font-medium text-white py-2 border-b border-surface-highlight">New York</Link>
+              <button 
+                onClick={handleLocationClick}
+                disabled={isLoading}
+                className="text-base font-medium text-white py-2 border-b border-surface-highlight flex items-center gap-2 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">{isLoading ? 'refresh' : 'location_on'}</span>
+                {isLoading ? 'Getting location...' : (city || 'Get Location')}
+              </button>
               <Link to="/movies" className="text-base font-medium text-white py-2 border-b border-surface-highlight">Movies</Link>
               <Link to="/home" className="text-base font-medium text-white py-2 border-b border-surface-highlight">Cinemas</Link>
               <Link to="/home" className="text-base font-medium text-white py-2">Offers</Link>
@@ -156,6 +178,9 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
           )}
         </div>
       )}
+      
+      {/* Location Modal */}
+      <LocationModal isOpen={showLocationModal} onClose={() => setShowLocationModal(false)} />
     </header>
   )
 }

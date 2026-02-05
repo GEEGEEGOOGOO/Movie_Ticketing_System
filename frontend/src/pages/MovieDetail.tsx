@@ -25,15 +25,15 @@ export default function MovieDetail() {
 
   // Mock movie database
   const mockMovieDatabase: { [key: number]: Partial<Movie> } = {
-    1: { id: 1, title: 'The Dark Knight', genre: 'Action, Crime, Drama', language: 'English', duration_minutes: 152, rating: 'PG-13', director: 'Christopher Nolan', description: 'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.', poster_url: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=800', backdrop_url: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=1600' },
-    2: { id: 2, title: 'Inception', genre: 'Sci-Fi, Thriller', language: 'English', duration_minutes: 148, rating: 'PG-13', director: 'Christopher Nolan', description: 'A thief who steals corporate secrets through dream-sharing technology is given the task of planting an idea into the mind of a CEO.', poster_url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800', backdrop_url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1600' },
-    3: { id: 3, title: 'Interstellar', genre: 'Sci-Fi, Drama', language: 'English', duration_minutes: 169, rating: 'PG-13', director: 'Christopher Nolan', description: 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival.', poster_url: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=800', backdrop_url: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=1600' },
-    4: { id: 4, title: 'The Matrix', genre: 'Action, Sci-Fi', language: 'English', duration_minutes: 136, rating: 'R', director: 'The Wachowskis', description: 'A computer hacker learns about the true nature of reality and his role in the war against its controllers.', poster_url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800', backdrop_url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1600' },
-    5: { id: 5, title: 'Pulp Fiction', genre: 'Crime, Drama', language: 'English', duration_minutes: 154, rating: 'R', director: 'Quentin Tarantino', description: 'The lives of two mob hitmen, a boxer, and a pair of diner bandits intertwine in four tales of violence and redemption.', poster_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800', backdrop_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1600' },
-    6: { id: 6, title: 'Oppenheimer', genre: 'Biography, Drama', language: 'English', duration_minutes: 180, rating: 'R', director: 'Christopher Nolan', description: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.', poster_url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=800', backdrop_url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=1600' },
-    7: { id: 7, title: 'Jawan', genre: 'Action, Thriller', language: 'Hindi', duration_minutes: 169, rating: 'UA', director: 'Atlee', description: 'A high-octane action thriller which outlines the emotional journey of a man.', poster_url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=800', backdrop_url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=1600' },
-    8: { id: 8, title: 'RRR', genre: 'Action, Drama', language: 'Telugu', duration_minutes: 187, rating: 'UA', director: 'S.S. Rajamouli', description: 'A fictional story about two legendary revolutionaries and their journey away from home.', poster_url: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=800', backdrop_url: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=1600' },
-    9: { id: 9, title: 'Dune: Part Two', genre: 'Sci-Fi, Adventure', language: 'English', duration_minutes: 166, rating: 'PG-13', director: 'Denis Villeneuve', description: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.', poster_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800', backdrop_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1600' },
+    1: { id: 1, title: 'The Dark Knight', genre: 'Action, Crime, Drama', language: 'English', duration: 152, rating: 'PG-13', description: 'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.', poster_url: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=800' },
+    2: { id: 2, title: 'Inception', genre: 'Sci-Fi, Thriller', language: 'English', duration: 148, rating: 'PG-13', description: 'A thief who steals corporate secrets through dream-sharing technology is given the task of planting an idea into the mind of a CEO.', poster_url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800' },
+    3: { id: 3, title: 'Interstellar', genre: 'Sci-Fi, Drama', language: 'English', duration: 169, rating: 'PG-13', description: 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival.', poster_url: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=800' },
+    4: { id: 4, title: 'The Matrix', genre: 'Action, Sci-Fi', language: 'English', duration: 136, rating: 'R', description: 'A computer hacker learns about the true nature of reality and his role in the war against its controllers.', poster_url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=800' },
+    5: { id: 5, title: 'Pulp Fiction', genre: 'Crime, Drama', language: 'English', duration: 154, rating: 'R', description: 'The lives of two mob hitmen, a boxer, and a pair of diner bandits intertwine in four tales of violence and redemption.', poster_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800' },
+    6: { id: 6, title: 'Oppenheimer', genre: 'Biography, Drama', language: 'English', duration: 180, rating: 'R', description: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.', poster_url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=800' },
+    7: { id: 7, title: 'Jawan', genre: 'Action, Thriller', language: 'Hindi', duration: 169, rating: 'UA', description: 'A high-octane action thriller which outlines the emotional journey of a man.', poster_url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=800' },
+    8: { id: 8, title: 'RRR', genre: 'Action, Drama', language: 'Telugu', duration: 187, rating: 'UA', description: 'A fictional story about two legendary revolutionaries and their journey away from home.', poster_url: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=800' },
+    9: { id: 9, title: 'Dune: Part Two', genre: 'Sci-Fi, Adventure', language: 'English', duration: 166, rating: 'PG-13', description: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.', poster_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800' },
   }
 
   const mockMovie = mockMovieDatabase[Number(id)] || mockMovieDatabase[1]
@@ -109,9 +109,9 @@ export default function MovieDetail() {
 
   // Group showtimes by theater
   const showtimesByTheater = displayShowtimes.reduce((acc, st) => {
-    const theaterName = st.screen?.theater?.name || 'Unknown Theater'
+    const theaterName = st.theater_name || st.screen?.theater?.name || 'Unknown Theater'
     if (!acc[theaterName]) {
-      acc[theaterName] = { theater: st.screen?.theater, showtimes: [] }
+      acc[theaterName] = { theater: { name: theaterName, city: st.theater_city || st.screen?.theater?.city }, showtimes: [] }
     }
     acc[theaterName].showtimes.push(st)
     return acc
@@ -166,9 +166,9 @@ export default function MovieDetail() {
                     {displayMovie.rating}
                   </span>
                 )}
-                {displayMovie.duration_minutes && (
+                {displayMovie.duration && (
                   <span className="text-text-secondary">
-                    {formatDuration(displayMovie.duration_minutes)}
+                    {formatDuration(displayMovie.duration)}
                   </span>
                 )}
                 {displayMovie.genre && (
@@ -182,12 +182,6 @@ export default function MovieDetail() {
               {displayMovie.description && (
                 <p className="text-text-secondary leading-relaxed mb-6 max-w-3xl mx-auto lg:mx-0 text-lg">
                   {displayMovie.description}
-                </p>
-              )}
-
-              {displayMovie.director && (
-                <p className="text-text-secondary">
-                  <span className="text-white font-semibold">Director:</span> {displayMovie.director}
                 </p>
               )}
 

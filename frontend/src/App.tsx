@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useLocationStore } from './store/locationStore'
+import LocationModal from './components/LocationModal'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import BrowseMovies from './pages/BrowseMovies'
@@ -22,6 +25,21 @@ const queryClient = new QueryClient({
 })
 
 function App() {
+  const { permissionAsked } = useLocationStore()
+  const [showLocationModal, setShowLocationModal] = useState(false)
+
+  useEffect(() => {
+    // Show location modal on first visit after user logs in
+    const timer = setTimeout(() => {
+      const isLoggedIn = localStorage.getItem('token')
+      if (isLoggedIn && !permissionAsked) {
+        setShowLocationModal(true)
+      }
+    }, 2000) // Delay for better UX after login
+
+    return () => clearTimeout(timer)
+  }, [permissionAsked])
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
@@ -39,6 +57,9 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/owner/dashboard" element={<OwnerDashboard />} />
         </Routes>
+        
+        {/* Location Modal - Shows on first visit */}
+        <LocationModal isOpen={showLocationModal} onClose={() => setShowLocationModal(false)} />
       </Router>
     </QueryClientProvider>
   )

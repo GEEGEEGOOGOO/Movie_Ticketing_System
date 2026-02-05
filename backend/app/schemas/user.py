@@ -48,6 +48,22 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=8, max_length=100)
 
 
+class UserLocationUpdate(BaseModel):
+    """Schema for updating user GPS location"""
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    city: Optional[str] = Field(None, max_length=100)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "latitude": 40.7128,
+                "longitude": -74.0060,
+                "city": "New York"
+            }
+        }
+
+
 # --- Response Schemas ---
 
 class UserResponse(BaseModel):

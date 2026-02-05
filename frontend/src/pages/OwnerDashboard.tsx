@@ -1,26 +1,24 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { theatersAPI, moviesAPI } from '../api/client'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 
 const MOCK_THEATERS = [
   {
-    id: '1',
+    id: 1,
     name: 'CineMax Downtown',
-    location: 'New York, NY',
-    screens: 8,
-    totalSeats: 1200,
-    bookingsToday: 450,
-    revenue: 12500,
+    city: 'New York, NY',
+    address: '123 Main St',
+    screens: [{ id: 1, name: 'Screen 1', total_seats: 150 }, { id: 2, name: 'Screen 2', total_seats: 100 }],
   },
   {
-    id: '2',
+    id: 2,
     name: 'Regal Cinemas Plaza',
-    location: 'Los Angeles, CA',
-    screens: 6,
-    totalSeats: 900,
-    bookingsToday: 320,
-    revenue: 8900,
+    city: 'Los Angeles, CA',
+    address: '456 Hollywood Blvd',
+    screens: [{ id: 3, name: 'IMAX', total_seats: 300 }],
   },
 ]
 
@@ -34,8 +32,33 @@ export default function OwnerDashboard() {
   const navigate = useNavigate()
   const [selectedView, setSelectedView] = useState<'overview' | 'theaters' | 'movies'>('overview')
 
-  const totalRevenue = MOCK_THEATERS.reduce((sum, t) => sum + t.revenue, 0)
-  const totalBookings = MOCK_THEATERS.reduce((sum, t) => sum + t.bookingsToday, 0)
+  // Fetch owner's theaters from real API
+  const { data: theatersData, isLoading: theatersLoading } = useQuery({
+    queryKey: ['my-theaters'],
+    queryFn: () => theatersAPI.getMyTheaters(),
+    retry: false,
+  })
+
+  // Fetch movies from API
+  const { data: moviesData, isLoading: moviesLoading } = useQuery({
+    queryKey: ['movies'],
+    queryFn: () => moviesAPI.getAll(),
+    retry: false,
+  })
+
+  // Use real data if available, fallback to mock
+  const theaters = theatersData || MOCK_THEATERS
+  const movies = moviesData?.movies || MOCK_MOVIES.map(m => ({ ...m, id: parseInt(m.id) }))
+
+  // Calculate totals from real theater data
+  const totalScreens = theaters.reduce((sum, t) => sum + (t.screens?.length || 0), 0)
+  const totalSeats = theaters.reduce((sum, t) => 
+    sum + (t.screens?.reduce((ssum, s) => ssum + (s.total_seats || 0), 0) || 0), 0
+  )
+  
+  // Mock revenue for now (would come from a separate analytics API)
+  const totalRevenue = 21400
+  const totalBookings = 770
 
   const breadcrumbs = [
     { label: 'Home', href: '/home' },
@@ -126,7 +149,7 @@ export default function OwnerDashboard() {
                   </div>
                 </div>
                 <p className="text-text-secondary text-sm mb-1">Active Theaters</p>
-                <p className="text-3xl font-bold text-white">{MOCK_THEATERS.length}</p>
+                <p className="text-3xl font-bold text-white">{theaters.length}</p>
               </div>
               
               <div className="glass-panel p-6">
@@ -137,7 +160,7 @@ export default function OwnerDashboard() {
                 </div>
                 <p className="text-text-secondary text-sm mb-1">Total Screens</p>
                 <p className="text-3xl font-bold text-white">
-                  {MOCK_THEATERS.reduce((sum, t) => sum + t.screens, 0)}
+                  {totalScreens}
                 </p>
               </div>
             </div>
@@ -207,48 +230,64 @@ export default function OwnerDashboard() {
               </button>
             </div>
 
-            <div className="space-y-4">
-              {MOCK_THEATERS.map(theater => (
-                <div key={theater.id} className="glass-panel p-6">
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <h3 className="text-white text-xl font-semibold mb-1">{theater.name}</h3>
-                      <p className="text-text-secondary flex items-center gap-1">
-                        <span className="material-symbols-outlined text-base">location_on</span>
-                        {theater.location}
-                      </p>
+            {theatersLoading ? (
+              <div className="glass-panel p-12 text-center">
+                <p className="text-text-secondary">Loading theaters...</p>
+              </div>
+            ) : theaters.length === 0 ? (
+              <div className="glass-panel p-12 text-center">
+                <span className="material-symbols-outlined text-text-secondary text-5xl mb-4">location_city</span>
+                <h3 className="text-white text-xl font-semibold mb-2">No Theaters Yet</h3>
+                <p className="text-text-secondary mb-6">Add your first theater to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {theaters.map((theater: any) => (
+                  <div key={theater.id} className="glass-panel p-6">
+                    <div className="flex items-start justify-between mb-6">
+                      <div>
+                        <h3 className="text-white text-xl font-semibold mb-1">{theater.name}</h3>
+                        <p className="text-text-secondary flex items-center gap-1">
+                          <span className="material-symbols-outlined text-base">location_on</span>
+                          {theater.city}{theater.address ? ` - ${theater.address}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="p-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-text-secondary hover:text-white transition-colors">
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                        <button className="p-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-text-secondary hover:text-white transition-colors">
+                          <span className="material-symbols-outlined">analytics</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="p-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-text-secondary hover:text-white transition-colors">
-                        <span className="material-symbols-outlined">edit</span>
-                      </button>
-                      <button className="p-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-text-secondary hover:text-white transition-colors">
-                        <span className="material-symbols-outlined">analytics</span>
-                      </button>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div>
+                        <p className="text-text-secondary text-sm mb-1">Screens</p>
+                        <p className="text-white text-2xl font-bold">{theater.screens?.length || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary text-sm mb-1">Total Seats</p>
+                        <p className="text-white text-2xl font-bold">
+                          {theater.screens?.reduce((sum: number, s: any) => sum + (s.total_seats || 0), 0) || 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary text-sm mb-1">Screens List</p>
+                        <p className="text-cyan-400 text-sm font-medium">
+                          {theater.screens?.map((s: any) => s.name).join(', ') || 'No screens'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary text-sm mb-1">Status</p>
+                        <p className="text-green-400 text-lg font-bold">Active</p>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div>
-                      <p className="text-text-secondary text-sm mb-1">Screens</p>
-                      <p className="text-white text-2xl font-bold">{theater.screens}</p>
-                    </div>
-                    <div>
-                      <p className="text-text-secondary text-sm mb-1">Total Seats</p>
-                      <p className="text-white text-2xl font-bold">{theater.totalSeats}</p>
-                    </div>
-                    <div>
-                      <p className="text-text-secondary text-sm mb-1">Bookings Today</p>
-                      <p className="text-cyan-400 text-2xl font-bold">{theater.bookingsToday}</p>
-                    </div>
-                    <div>
-                      <p className="text-text-secondary text-sm mb-1">Revenue Today</p>
-                      <p className="text-green-400 text-2xl font-bold">${theater.revenue.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -263,40 +302,55 @@ export default function OwnerDashboard() {
               </button>
             </div>
 
-            <div className="space-y-4">
-              {MOCK_MOVIES.map(movie => (
-                <div key={movie.id} className="glass-panel p-6">
-                  <div className="flex gap-6">
-                    <div className="w-20 h-28 bg-surface-dark rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-text-secondary text-3xl">movie</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-white text-xl font-semibold">{movie.title}</h3>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-text-secondary hover:text-white text-sm transition-colors">
-                          <span className="material-symbols-outlined text-base">schedule</span>
-                          Manage Showtimes
-                        </button>
+            {moviesLoading ? (
+              <div className="glass-panel p-12 text-center">
+                <p className="text-text-secondary">Loading movies...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {movies.map((movie: any) => (
+                  <div key={movie.id} className="glass-panel p-6">
+                    <div className="flex gap-6">
+                      <div className="w-20 h-28 bg-surface-dark rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {movie.poster_url ? (
+                          <img src={movie.poster_url} alt={movie.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-text-secondary text-3xl">movie</span>
+                        )}
                       </div>
-                      <div className="grid grid-cols-3 gap-8">
-                        <div>
-                          <p className="text-text-secondary text-sm mb-1">Shows Today</p>
-                          <p className="text-white text-2xl font-bold">{movie.shows}</p>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-white text-xl font-semibold">{movie.title}</h3>
+                            <p className="text-text-secondary text-sm">{movie.genre} • {movie.duration_minutes} min • {movie.rating}</p>
+                          </div>
+                          <button className="flex items-center gap-2 px-4 py-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-text-secondary hover:text-white text-sm transition-colors">
+                            <span className="material-symbols-outlined text-base">schedule</span>
+                            Manage Showtimes
+                          </button>
                         </div>
-                        <div>
-                          <p className="text-text-secondary text-sm mb-1">Bookings</p>
-                          <p className="text-cyan-400 text-2xl font-bold">{movie.bookings}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-secondary text-sm mb-1">Revenue</p>
-                          <p className="text-green-400 text-2xl font-bold">${movie.revenue.toLocaleString()}</p>
+                        <div className="grid grid-cols-3 gap-8">
+                          <div>
+                            <p className="text-text-secondary text-sm mb-1">Language</p>
+                            <p className="text-white text-lg font-bold">{movie.language}</p>
+                          </div>
+                          <div>
+                            <p className="text-text-secondary text-sm mb-1">Director</p>
+                            <p className="text-cyan-400 text-lg">{movie.director || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-text-secondary text-sm mb-1">Status</p>
+                            <p className={`text-lg font-bold ${movie.is_active ? 'text-green-400' : 'text-red-400'}`}>
+                              {movie.is_active ? 'Active' : 'Inactive'}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </main>

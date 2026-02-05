@@ -33,14 +33,50 @@ async def create_theater(
 @router.get("/", response_model=List[TheaterResponse])
 async def list_theaters(
     city: str = None,
+    latitude: float = None,
+    longitude: float = None,
+    radius_km: float = 7.0,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """List all theaters, optionally filtered by city"""
+    """
+    List all theaters, optionally filtered by:
+    - city: Filter by city name
+    - latitude/longitude: GPS coordinates for distance-based search
+    - radius_km: Search radius in kilometers (default: 7km)
+    """
+    # If GPS coordinates provided, search by distance
+    if latitude is not None and longitude is not None:
+        return crud_theater.get_theaters_nearby(db, latitude, longitude, radius_km)
+    
+    # Otherwise filter by city if provided
     if city:
         return crud_theater.get_theaters_by_city(db, city)
+    
     return crud_theater.get_all_theaters(db, skip, limit)
+
+
+@router.get("/nearby", response_model=List[TheaterResponse])
+async def get_nearby_theaters(
+    radius_km: float = 7.0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get theaters within radius_km of user's saved location"""
+    if not current_user.latitude or not current_user.longitude:
+        raise HTTPException(
+            status_code=400, 
+            detail="User location not set. Please update your location first."
+        )
+    
+    return crud_theater.get_theaters_nearby(
+        db, 
+        float(current_user.latitude), 
+        float(current_user.longitude), 
+        radius_km
+    )
+
 
 
 @router.get("/my-theaters", response_model=List[TheaterWithScreens])

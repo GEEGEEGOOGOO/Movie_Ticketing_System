@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
+import { bookingsAPI } from '../api/client'
 import type { Booking, Showtime } from '../api/client'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -74,6 +76,39 @@ export default function Payment() {
   const taxes = totalAmount * 0.08
   const finalAmount = totalAmount + convenienceFee + taxes
 
+  // Payment mutation using real API
+  const paymentMutation = useMutation({
+    mutationFn: async (bookingId: number) => {
+      const paymentMethod = selectedSavedCard ? 'saved_card' : 'credit_card'
+      return bookingsAPI.processPayment(bookingId, paymentMethod)
+    },
+    onSuccess: (paymentConfirmation) => {
+      setProgress(100)
+      setPaymentStage('Payment successful!')
+      
+      setTimeout(() => {
+        navigate(`/booking/confirmation/${paymentConfirmation.booking_reference}`, {
+          state: {
+            paymentConfirmation,
+            booking: {
+              ...booking,
+              booking_reference: paymentConfirmation.booking_reference,
+              total_amount: finalAmount,
+              status: 'confirmed',
+            },
+            showtime,
+            selectedSeats,
+          },
+        })
+      }, 500)
+    },
+    onError: (error: Error) => {
+      setIsProcessing(false)
+      setProgress(0)
+      alert('Payment failed: ' + error.message)
+    },
+  })
+
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsProcessing(true)
@@ -87,44 +122,25 @@ export default function Payment() {
       { stage: 'Confirming booking...', duration: 800 },
     ]
 
+    // Show animation stages
     let currentProgress = 0
-    for (let i = 0; i < stages.length; i++) {
+    for (let i = 0; i < stages.length - 1; i++) {
       setPaymentStage(stages[i].stage)
       await new Promise((resolve) => setTimeout(resolve, stages[i].duration))
       currentProgress = ((i + 1) / stages.length) * 100
       setProgress(currentProgress)
     }
 
+    // Actually process payment via API
     if (booking?.id) {
-      // In mock mode, skip the real API call and go straight to mock success
-      const mockBookingRef = 'BK' + Date.now().toString().slice(-8)
-      const mockTxnId = 'TXN' + Math.random().toString(36).substr(2, 12).toUpperCase()
-
-      setTimeout(() => {
-        navigate(`/booking/confirmation/${mockBookingRef}`, {
-          state: {
-            paymentConfirmation: {
-              booking_reference: mockBookingRef,
-              transaction_id: mockTxnId,
-              amount: finalAmount,
-              status: 'success',
-              message: 'Payment successful',
-            },
-            booking: {
-              ...booking,
-              booking_reference: mockBookingRef,
-              total_amount: finalAmount,
-              status: 'confirmed',
-            },
-            showtime,
-            selectedSeats,
-          },
-        })
-      }, 500)
+      setPaymentStage('Processing payment...')
+      paymentMutation.mutate(booking.id)
     } else {
-      // Mock payment success for seat selection flow
+      // Fallback for mock mode if no booking exists
       const mockBookingRef = 'BK' + Date.now().toString().slice(-8)
       const mockTxnId = 'TXN' + Math.random().toString(36).substr(2, 12).toUpperCase()
+      setProgress(100)
+      setPaymentStage('Payment successful!')
 
       setTimeout(() => {
         navigate(`/booking/confirmation/${mockBookingRef}`, {

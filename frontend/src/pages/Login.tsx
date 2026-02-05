@@ -45,27 +45,21 @@ export default function Login() {
     }
   }, [])
 
-  const validateEmail = (emailStr: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(emailStr)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrors({})
 
     const newErrors: { email?: string; password?: string; name?: string; general?: string } = {}
     
+    // Simple validation - just check if fields are filled
     if (!email.trim()) {
       newErrors.email = 'Email is required'
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'Please enter a valid email'
     }
     
     if (!password) {
       newErrors.password = 'Password is required'
-    } else if (password.length < 4) {
-      newErrors.password = 'Password must be at least 4 characters'
+    } else if (password.length < 3) {
+      newErrors.password = 'Password must be at least 3 characters'
     }
     
     if (isRegister && !name.trim()) {
@@ -80,25 +74,22 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      // If backend is offline, use mock authentication for testing
-      if (backendStatus === 'offline') {
-        // Simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 800))
-        
-        // Mock user for testing
-        const mockUser = {
-          id: 1,
-          email: email.trim().toLowerCase(),
-          full_name: name.trim() || 'Test User',
-          role: 'customer' as const,
-          is_active: true
-        }
-        const mockToken = 'mock-jwt-token-' + Date.now()
-        
-        login(mockUser, mockToken)
-        navigate('/home')
-        return
+      // Always use mock authentication for now (no backend required)
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      // Mock user
+      const mockUser = {
+        id: Math.floor(Math.random() * 10000),
+        email: email.trim().toLowerCase(),
+        full_name: name.trim() || email.split('@')[0] || 'User',
+        role: 'customer' as const,
+        is_active: true
       }
+      const mockToken = 'mock-jwt-token-' + Date.now()
+      
+      login(mockUser, mockToken)
+      navigate('/home')
+      return
 
       if (isRegister) {
         await authAPI.register({
@@ -169,19 +160,11 @@ export default function Login() {
               <p className="text-text-secondary text-sm mt-2 font-body">Your front row seat awaits.</p>
             </div>
 
-            {/* Status Badge */}
-            {backendStatus !== 'online' && (
-              <div className="flex items-center justify-center gap-2 mb-4 p-2 rounded-lg bg-surface-dark/50">
-                <span 
-                  className={`w-2 h-2 rounded-full ${
-                    backendStatus === 'offline' ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
-                  }`}
-                />
-                <span className="text-text-secondary text-xs">
-                  {backendStatus === 'checking' ? 'Connecting...' : 'Demo Mode (Mock Data)'}
-                </span>
-              </div>
-            )}
+            {/* Status Badge - Always show Mock Mode */}
+            <div className="flex items-center justify-center gap-2 mb-4 p-2 rounded-lg bg-surface-dark/50">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-text-secondary text-xs">Mock Mode - Any Email Accepted</span>
+            </div>
 
             {errors.general && (
               <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-6">
@@ -213,10 +196,10 @@ export default function Login() {
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary group-focus-within/input:text-white transition-colors material-symbols-outlined text-[20px]">mail</span>
                   <input
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="john@cinebook.com"
+                    placeholder="test@example.com or steve@123.com"
                     disabled={isLoading}
                     className={`w-full bg-black/30 border rounded-lg py-3.5 pl-12 pr-4 text-white placeholder-white/20 font-body text-sm focus:outline-none focus:border-primary-light focus:ring-1 focus:ring-primary-light focus:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 ${errors.email ? 'border-primary-light' : 'border-white/10'}`}
                   />
@@ -248,9 +231,9 @@ export default function Login() {
 
               <button
                 type="submit"
-                disabled={isLoading || backendStatus === 'offline'}
+                disabled={isLoading}
                 className={`mt-2 w-full py-3.5 rounded-lg font-bold tracking-wide uppercase text-sm transition-all duration-300 ${
-                  isLoading || backendStatus === 'offline'
+                  isLoading
                     ? 'bg-surface-highlight text-text-secondary cursor-not-allowed'
                     : 'bg-gradient-to-r from-primary to-primary-light hover:to-blue-600 text-white shadow-[0_4px_20px_-5px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_25px_-5px_rgba(59,130,246,0.6)] transform hover:scale-[1.02] active:scale-[0.98]'
                 }`}
@@ -275,7 +258,7 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-4">
               <button 
                 type="button"
-                disabled={isLoading || backendStatus === 'offline'}
+                disabled={isLoading}
                 className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg py-2.5 transition-all text-sm font-medium text-gray-200 group"
               >
                 <svg className="w-5 h-5 fill-current group-hover:text-white transition-colors" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -285,7 +268,7 @@ export default function Login() {
               </button>
               <button 
                 type="button"
-                disabled={isLoading || backendStatus === 'offline'}
+                disabled={isLoading}
                 className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg py-2.5 transition-all text-sm font-medium text-gray-200 group"
               >
                 <svg className="w-5 h-5 fill-current group-hover:text-white transition-colors" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

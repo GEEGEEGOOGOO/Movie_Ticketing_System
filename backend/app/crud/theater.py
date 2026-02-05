@@ -3,12 +3,40 @@ Theater, Screen, and Seat CRUD operations
 """
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from typing import List, Optional
+import math
 
 from app.models.theater import Theater, Screen, Seat, SeatType
 from app.schemas.theater import (
     TheaterCreate, TheaterUpdate, ScreenCreate, SeatCreate, SeatBulkCreate
 )
+
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate distance between two GPS coordinates using Haversine formula
+    Returns distance in kilometers
+    """
+    # Radius of Earth in kilometers
+    R = 6371.0
+    
+    # Convert degrees to radians
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+    
+    # Differences
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+    
+    # Haversine formula
+    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    distance = R * c
+    return distance
 
 
 # --- Theater CRUD ---
@@ -45,6 +73,32 @@ def get_theaters_by_city(db: Session, city: str) -> List[Theater]:
 def get_all_theaters(db: Session, skip: int = 0, limit: int = 100) -> List[Theater]:
     """Get all theaters with pagination"""
     return db.query(Theater).offset(skip).limit(limit).all()
+
+
+def get_theaters_nearby(db: Session, user_lat: float, user_lon: float, radius_km: float = 7.0) -> List[Theater]:
+    """
+    Get theaters within radius_km of user's location
+    Uses Haversine formula to calculate distance
+    """
+    all_theaters = db.query(Theater).filter(
+        Theater.latitude.isnot(None),
+        Theater.longitude.isnot(None)
+    ).all()
+    
+    nearby_theaters = []
+    for theater in all_theaters:
+        distance = calculate_distance(
+            user_lat, user_lon,
+            float(theater.latitude), float(theater.longitude)
+        )
+        if distance <= radius_km:
+            # Add distance as a temporary attribute for sorting
+            theater.distance_km = round(distance, 2)
+            nearby_theaters.append(theater)
+    
+    # Sort by distance (closest first)
+    nearby_theaters.sort(key=lambda t: t.distance_km)
+    return nearby_theaters
 
 
 def update_theater(

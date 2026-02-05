@@ -3,7 +3,7 @@ User model for authentication and authorization
 Per ADR-003: PostgreSQL with proper relationships
 Per ADR-004: Role-based access (customer/owner)
 """
-from sqlalchemy import Column, Integer, String, Enum, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Enum, DateTime, Boolean, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -32,6 +32,11 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     verification_otp = Column(String(6), nullable=True)
     otp_expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Location fields for GPS-based theater search
+    latitude = Column(Numeric(10, 8), nullable=True)  # e.g., 40.7128
+    longitude = Column(Numeric(11, 8), nullable=True)  # e.g., -74.0060
+    city = Column(String(100), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

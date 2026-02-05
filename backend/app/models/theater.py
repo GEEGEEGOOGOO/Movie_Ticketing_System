@@ -24,6 +24,10 @@ class Theater(Base):
     location = Column(String(500), nullable=False)
     city = Column(String(100), nullable=False, index=True)
     
+    # GPS coordinates for distance-based search
+    latitude = Column(Numeric(10, 8), nullable=True)  # e.g., 40.7128
+    longitude = Column(Numeric(11, 8), nullable=True)  # e.g., -74.0060
+    
     # Foreign key to owner (User with role=owner)
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     

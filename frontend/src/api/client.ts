@@ -58,12 +58,11 @@ export interface Movie {
   release_date: string
   genre: string
   language: string
-  director: string
-  duration_minutes: number
+  duration: number  // minutes
   rating: string
   poster_url?: string
-  backdrop_url?: string
-  is_active: boolean
+  trailer_url?: string
+  created_at?: string
 }
 
 export interface Theater {
@@ -98,8 +97,12 @@ export interface Showtime {
   start_time: string
   end_time?: string
   price_multiplier: number
-  is_active: boolean
+  created_at?: string
   movie?: Movie
+  screen_name?: string
+  theater_name?: string
+  theater_city?: string
+  available_seats?: number
   screen?: Screen & { theater?: Theater }
 }
 
@@ -108,8 +111,18 @@ export interface SeatAvailability {
   row: string
   number: number
   seat_type: string
-  price: number
+  price: number | string  // Backend may return string, we convert to number
   is_available: boolean
+}
+
+export interface ShowtimeSeats {
+  showtime_id: number
+  movie_title: string
+  screen_name: string
+  start_time: string
+  seats: SeatAvailability[]
+  total_seats: number
+  available_seats: number
 }
 
 export interface Booking {
@@ -136,7 +149,7 @@ export interface BookingSeat {
   row: string
   number: number
   seat_type: string
-  price: number
+  price: number | string  // Backend may return string, convert to number when needed
 }
 
 export interface Payment {
@@ -204,6 +217,18 @@ export const authAPI = {
     }
   },
 
+  updateLocation: async (data: { latitude: number; longitude: number; city?: string }): Promise<User> => {
+    const response = await apiClient.put('/api/auth/location', data)
+    const resData = response.data
+    return {
+      id: resData.id,
+      email: resData.email,
+      full_name: resData.name || resData.full_name,
+      role: resData.role,
+      is_active: resData.is_verified ?? true
+    }
+  },
+
   logout: async (): Promise<void> => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -214,22 +239,22 @@ export const authAPI = {
 
 export const moviesAPI = {
   getAll: async (params?: { genre?: string; language?: string; page?: number; per_page?: number }): Promise<{ movies: Movie[]; total: number }> => {
-    const response = await apiClient.get('/movies/', { params })
+    const response = await apiClient.get('/api/movies/', { params })
     return response.data
   },
 
   getById: async (id: number): Promise<Movie> => {
-    const response = await apiClient.get<Movie>(`/movies/${id}`)
+    const response = await apiClient.get<Movie>(`/api/movies/${id}`)
     return response.data
   },
 
   getShowtimes: async (movieId: number, city?: string, date?: string): Promise<Showtime[]> => {
-    const response = await apiClient.get(`/movies/${movieId}/showtimes`, { params: { city, date } })
+    const response = await apiClient.get(`/api/showtimes/movie/${movieId}`, { params: { city, date } })
     return response.data
   },
 
   create: async (data: Partial<Movie>): Promise<Movie> => {
-    const response = await apiClient.post<Movie>('/movies/', data)
+    const response = await apiClient.post<Movie>('/api/movies/', data)
     return response.data
   },
 }
@@ -238,17 +263,36 @@ export const moviesAPI = {
 
 export const theatersAPI = {
   getAll: async (city?: string): Promise<Theater[]> => {
-    const response = await apiClient.get<Theater[]>('/theaters/', { params: { city } })
+    const response = await apiClient.get<Theater[]>('/api/theaters/', { params: { city } })
+    return response.data
+  },
+
+  getNearby: async (latitude?: number, longitude?: number, radius_km: number = 7): Promise<Theater[]> => {
+    if (latitude && longitude) {
+      const response = await apiClient.get<Theater[]>('/api/theaters/', { 
+        params: { latitude, longitude, radius_km } 
+      })
+      return response.data
+    }
+    // If user is logged in and has location saved, use that
+    const response = await apiClient.get<Theater[]>('/api/theaters/nearby', { 
+      params: { radius_km } 
+    })
     return response.data
   },
 
   getById: async (id: number): Promise<Theater> => {
-    const response = await apiClient.get<Theater>(`/theaters/${id}`)
+    const response = await apiClient.get<Theater>(`/api/theaters/${id}`)
+    return response.data
+  },
+
+  getMyTheaters: async (): Promise<Theater[]> => {
+    const response = await apiClient.get<Theater[]>('/api/theaters/my-theaters')
     return response.data
   },
 
   create: async (data: { name: string; city: string; address?: string; screens?: { name: string; total_seats: number }[] }): Promise<Theater> => {
-    const response = await apiClient.post<Theater>('/theaters/', data)
+    const response = await apiClient.post<Theater>('/api/theaters/', data)
     return response.data
   },
 }
@@ -257,17 +301,17 @@ export const theatersAPI = {
 
 export const showtimesAPI = {
   getById: async (id: number): Promise<Showtime> => {
-    const response = await apiClient.get<Showtime>(`/showtimes/${id}`)
+    const response = await apiClient.get<Showtime>(`/api/showtimes/${id}`)
     return response.data
   },
 
   getAvailability: async (showtimeId: number): Promise<SeatAvailability[]> => {
-    const response = await apiClient.get<SeatAvailability[]>(`/showtimes/${showtimeId}/availability`)
-    return response.data
+    const response = await apiClient.get<ShowtimeSeats>(`/api/showtimes/${showtimeId}/seats`)
+    return response.data.seats || []
   },
 
   create: async (data: { movie_id: number; screen_id: number; start_time: string; price: number }): Promise<Showtime> => {
-    const response = await apiClient.post<Showtime>('/showtimes/', data)
+    const response = await apiClient.post<Showtime>('/api/showtimes/', data)
     return response.data
   },
 }
@@ -276,32 +320,32 @@ export const showtimesAPI = {
 
 export const bookingsAPI = {
   create: async (data: { showtime_id: number; seat_ids: number[] }): Promise<Booking> => {
-    const response = await apiClient.post<Booking>('/bookings/', data)
+    const response = await apiClient.post<Booking>('/api/bookings/', data)
     return response.data
   },
 
   getMyBookings: async (page?: number, perPage?: number): Promise<{ bookings: Booking[]; total: number }> => {
-    const response = await apiClient.get('/bookings/', { params: { page, per_page: perPage } })
+    const response = await apiClient.get('/api/bookings/', { params: { page, per_page: perPage } })
     return response.data
   },
 
   getById: async (id: number): Promise<Booking> => {
-    const response = await apiClient.get<Booking>(`/bookings/${id}`)
+    const response = await apiClient.get<Booking>(`/api/bookings/${id}`)
     return response.data
   },
 
   getByReference: async (reference: string): Promise<Booking> => {
-    const response = await apiClient.get<Booking>(`/bookings/reference/${reference}`)
+    const response = await apiClient.get<Booking>(`/api/bookings/reference/${reference}`)
     return response.data
   },
 
   cancel: async (id: number): Promise<Booking> => {
-    const response = await apiClient.post<Booking>(`/bookings/${id}/cancel`)
+    const response = await apiClient.post<Booking>(`/api/bookings/${id}/cancel`)
     return response.data
   },
 
   processPayment: async (bookingId: number, paymentMethod: string): Promise<PaymentConfirmation> => {
-    const response = await apiClient.post<PaymentConfirmation>(`/bookings/${bookingId}/pay`, {
+    const response = await apiClient.post<PaymentConfirmation>(`/api/bookings/${bookingId}/pay`, {
       booking_id: bookingId,
       payment_method: paymentMethod
     })

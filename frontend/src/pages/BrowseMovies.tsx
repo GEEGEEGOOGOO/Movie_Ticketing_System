@@ -20,18 +20,18 @@ export default function BrowseMovies() {
 
   // Mock data for demo - comprehensive movie list
   const mockMovies: Partial<Movie>[] = [
-    { id: 1, title: 'The Dark Knight', genre: 'Action', language: 'English', duration_minutes: 152, rating: 'PG-13', description: 'Batman battles the Joker in Gotham City', poster_url: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400' },
-    { id: 2, title: 'Inception', genre: 'Sci-Fi', language: 'English', duration_minutes: 148, rating: 'PG-13', description: 'A thief who steals secrets through dreams', poster_url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400' },
-    { id: 3, title: 'Interstellar', genre: 'Sci-Fi', language: 'English', duration_minutes: 169, rating: 'PG-13', description: 'Space travel to save humanity', poster_url: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400' },
-    { id: 4, title: 'The Matrix', genre: 'Action', language: 'English', duration_minutes: 136, rating: 'R', description: 'A hacker discovers reality is simulated', poster_url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400' },
-    { id: 5, title: 'Pulp Fiction', genre: 'Crime', language: 'English', duration_minutes: 154, rating: 'R', description: 'Interconnected crime stories', poster_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400' },
-    { id: 6, title: 'Oppenheimer', genre: 'Drama', language: 'English', duration_minutes: 180, rating: 'R', description: 'Story of the atomic bomb creator', poster_url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=400' },
-    { id: 7, title: 'Jawan', genre: 'Action', language: 'Hindi', duration_minutes: 169, rating: 'UA', description: 'High-octane action thriller', poster_url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=400' },
-    { id: 8, title: 'RRR', genre: 'Action', language: 'Telugu', duration_minutes: 187, rating: 'UA', description: 'Period action epic', poster_url: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=400' },
-    { id: 9, title: 'Dune: Part Two', genre: 'Sci-Fi', language: 'English', duration_minutes: 166, rating: 'PG-13', description: 'Epic sci-fi adventure continues', poster_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400' },
-    { id: 10, title: 'Avatar 2', genre: 'Sci-Fi', language: 'English', duration_minutes: 192, rating: 'PG-13', description: 'Return to Pandora', poster_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400' },
-    { id: 11, title: 'The Hangover', genre: 'Comedy', language: 'English', duration_minutes: 100, rating: 'R', description: 'Wild bachelor party in Vegas', poster_url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400' },
-    { id: 12, title: 'Joker', genre: 'Drama', language: 'English', duration_minutes: 122, rating: 'R', description: 'Origin story of Batman\'s nemesis', poster_url: 'https://images.unsplash.com/photo-1574267432667-f0b1cf4d6c57?w=400' },
+    { id: 1, title: 'The Dark Knight', genre: 'Action', language: 'English', duration: 152, rating: 'PG-13', description: 'Batman battles the Joker in Gotham City', poster_url: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400' },
+    { id: 2, title: 'Inception', genre: 'Sci-Fi', language: 'English', duration: 148, rating: 'PG-13', description: 'A thief who steals secrets through dreams', poster_url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400' },
+    { id: 3, title: 'Interstellar', genre: 'Sci-Fi', language: 'English', duration: 169, rating: 'PG-13', description: 'Space travel to save humanity', poster_url: 'https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=400' },
+    { id: 4, title: 'The Matrix', genre: 'Action', language: 'English', duration: 136, rating: 'R', description: 'A hacker discovers reality is simulated', poster_url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400' },
+    { id: 5, title: 'Pulp Fiction', genre: 'Crime', language: 'English', duration: 154, rating: 'R', description: 'Interconnected crime stories', poster_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400' },
+    { id: 6, title: 'Oppenheimer', genre: 'Drama', language: 'English', duration: 180, rating: 'R', description: 'Story of the atomic bomb creator', poster_url: 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=400' },
+    { id: 7, title: 'Jawan', genre: 'Action', language: 'Hindi', duration: 169, rating: 'UA', description: 'High-octane action thriller', poster_url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=400' },
+    { id: 8, title: 'RRR', genre: 'Action', language: 'Telugu', duration: 187, rating: 'UA', description: 'Period action epic', poster_url: 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=400' },
+    { id: 9, title: 'Dune: Part Two', genre: 'Sci-Fi', language: 'English', duration: 166, rating: 'PG-13', description: 'Epic sci-fi adventure continues', poster_url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400' },
+    { id: 10, title: 'Avatar 2', genre: 'Sci-Fi', language: 'English', duration: 192, rating: 'PG-13', description: 'Return to Pandora', poster_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400' },
+    { id: 11, title: 'The Hangover', genre: 'Comedy', language: 'English', duration: 100, rating: 'R', description: 'Wild bachelor party in Vegas', poster_url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400' },
+    { id: 12, title: 'Joker', genre: 'Drama', language: 'English', duration: 122, rating: 'R', description: 'Origin story of Batman\'s nemesis', poster_url: 'https://images.unsplash.com/photo-1574267432667-f0b1cf4d6c57?w=400' },
   ]
 
   const displayMovies = movies.length > 0 ? movies : mockMovies as Movie[]
@@ -163,7 +163,7 @@ export default function BrowseMovies() {
                     {movie.title}
                   </h3>
                   <p className="text-text-secondary text-sm">
-                    {movie.genre} • {movie.duration_minutes ? formatDuration(movie.duration_minutes) : 'N/A'}
+                    {movie.genre} • {movie.duration ? formatDuration(movie.duration) : 'N/A'}
                   </p>
                 </Link>
               ))}

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { bookingsAPI } from '../api/client'
@@ -13,12 +13,31 @@ interface DisplayBooking extends Booking {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['myBookings'],
     queryFn: () => bookingsAPI.getMyBookings(),
     retry: false
   })
+
+  // Cancel booking mutation
+  const cancelMutation = useMutation({
+    mutationFn: (bookingId: number) => bookingsAPI.cancel(bookingId),
+    onSuccess: () => {
+      // Refresh bookings list after cancel
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] })
+    },
+    onError: (error: Error) => {
+      alert('Failed to cancel booking: ' + error.message)
+    },
+  })
+
+  const handleCancelBooking = (bookingId: number) => {
+    if (confirm('Are you sure you want to cancel this booking?')) {
+      cancelMutation.mutate(bookingId)
+    }
+  }
 
   // Mock data fallback for demo
   const mockBookings: DisplayBooking[] = [
@@ -250,6 +269,14 @@ export default function Dashboard() {
                             <button className="flex items-center gap-1.5 px-4 py-2 bg-surface-dark hover:bg-surface-highlight border border-white/10 rounded-lg text-white text-sm transition-colors">
                               <span className="material-symbols-outlined text-base">print</span>
                               Print
+                            </button>
+                            <button 
+                              onClick={() => handleCancelBooking(booking.id)}
+                              disabled={cancelMutation.isPending}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-lg text-red-400 text-sm transition-colors disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-base">cancel</span>
+                              {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
                             </button>
                           </>
                         )}

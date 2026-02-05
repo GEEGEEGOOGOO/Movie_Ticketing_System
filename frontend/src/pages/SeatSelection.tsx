@@ -19,14 +19,14 @@ export default function SeatSelection() {
   const [timeLeft, setTimeLeft] = useState(5 * 60) // 5 minutes in seconds
 
   // Fetch showtime details
-  const { data: showtime, isLoading: showtimeLoading } = useQuery({
+  const { data: showtime, isLoading: showtimeLoading, error: showtimeError } = useQuery({
     queryKey: ['showtime', showtimeId],
     queryFn: () => showtimesAPI.getById(Number(showtimeId)),
     enabled: !!showtimeId,
   })
 
   // Fetch seat availability
-  const { data: seatAvailability, isLoading: seatsLoading } = useQuery({
+  const { data: seatAvailability, isLoading: seatsLoading, error: seatsError } = useQuery({
     queryKey: ['seatAvailability', showtimeId],
     queryFn: () => showtimesAPI.getAvailability(Number(showtimeId)),
     enabled: !!showtimeId,
@@ -101,6 +101,7 @@ export default function SeatSelection() {
     if (seatAvailability && seatAvailability.length > 0) {
       return seatAvailability.map((seat) => ({
         ...seat,
+        price: typeof seat.price === 'string' ? parseFloat(seat.price) : seat.price,
         status: seat.is_available
           ? selectedSeats.some((s) => s.seat_id === seat.seat_id)
             ? 'selected'
@@ -147,31 +148,16 @@ export default function SeatSelection() {
     })
   }
 
-  const totalAmount = selectedSeats.reduce((sum, seat) => sum + seat.price, 0)
+  const totalAmount = selectedSeats.reduce((sum, seat) => sum + (typeof seat.price === 'string' ? parseFloat(seat.price) : seat.price), 0)
   const convenienceFee = selectedSeats.length > 0 ? selectedSeats.length * 1.50 : 0
 
   const handleContinue = () => {
     if (selectedSeats.length === 0) return
 
-    // For mock mode, navigate directly to payment with mock data
-    navigate('/booking/payment', {
-      state: {
-        booking: {
-          id: Math.floor(Math.random() * 10000),
-          booking_reference: `BK${Date.now().toString().slice(-8)}`,
-          showtime_id: Number(showtimeId),
-          seat_count: selectedSeats.length,
-          total_amount: totalAmount + convenienceFee,
-          status: 'pending',
-        },
-        showtime: showtime || {
-          id: Number(showtimeId),
-          movie: { title: 'Mock Movie', duration_minutes: 120 },
-          screen: { name: 'Screen 1', theater: { name: 'Cinema Paradise', city: 'Downtown' } },
-          start_time: new Date().toISOString(),
-        },
-        selectedSeats,
-      },
+    // Create real booking via API
+    createBookingMutation.mutate({
+      showtime_id: Number(showtimeId),
+      seat_ids: selectedSeats.map((s) => s.seat_id),
     })
   }
 
@@ -207,6 +193,25 @@ export default function SeatSelection() {
     )
   }
 
+  if (showtimeError || seatsError) {
+    return (
+      <div className="min-h-screen bg-background-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">Error loading showtime</div>
+          <div className="text-white text-sm mb-4">
+            {showtimeError ? String(showtimeError) : String(seatsError)}
+          </div>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-red-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-background-dark font-display text-white overflow-x-hidden min-h-screen flex flex-col">
       <Header />
@@ -224,11 +229,11 @@ export default function SeatSelection() {
             <div>
               <h1 className="text-2xl font-bold text-white tracking-wide">{showtime?.movie?.title || 'Dune: Part Two'}</h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary mt-1">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">theaters</span> {showtime?.screen?.theater?.name || 'AMC Empire 25'}</span>
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">theaters</span> {showtime?.theater_name || 'AMC Empire 25'}</span>
                 <span className="w-1 h-1 bg-surface-highlight rounded-full"></span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> Today, 19:30</span>
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> {showtime?.start_time ? new Date(showtime.start_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Today, 19:30'}</span>
                 <span className="w-1 h-1 bg-surface-highlight rounded-full"></span>
-                <span className="bg-surface-highlight/50 px-2 py-0.5 rounded text-xs text-white border border-surface-highlight">IMAX Laser</span>
+                <span className="bg-surface-highlight/50 px-2 py-0.5 rounded text-xs text-white border border-surface-highlight">{showtime?.screen_name || 'IMAX Laser'}</span>
               </div>
             </div>
           </div>
@@ -409,7 +414,7 @@ export default function SeatSelection() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-bold text-white">${seat.price.toFixed(2)}</div>
+                        <div className="text-sm font-bold text-white">${(typeof seat.price === 'number' ? seat.price : parseFloat(seat.price)).toFixed(2)}</div>
                         <button 
                           onClick={() => toggleSeat(seat)}
                           className="text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"

@@ -1,20 +1,29 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { moviesAPI, theatersAPI } from '../api/client'
+import { useLocationStore } from '../store/locationStore'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 
 export default function Home() {
   const navigate = useNavigate()
+  const { coordinates } = useLocationStore()
 
   const { data: moviesData, isLoading: moviesLoading } = useQuery({
     queryKey: ['movies'],
     queryFn: () => moviesAPI.getAll({ per_page: 10 }),
   })
 
+  // Fetch nearby theaters within 7km if user has shared location
   const { data: theaters, isLoading: theatersLoading } = useQuery({
-    queryKey: ['theaters'],
-    queryFn: () => theatersAPI.getAll(),
+    queryKey: ['theaters', 'nearby', coordinates?.latitude, coordinates?.longitude],
+    queryFn: () => {
+      if (coordinates?.latitude && coordinates?.longitude) {
+        return theatersAPI.getNearby(coordinates.latitude, coordinates.longitude, 7)
+      }
+      return theatersAPI.getAll()
+    },
+    enabled: true,
   })
 
   const movies = moviesData?.movies || []

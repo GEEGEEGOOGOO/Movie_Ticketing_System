@@ -8,7 +8,7 @@ from app.models.user import User, UserRole
 from app.crud.user import (
     get_user_by_email, create_user, authenticate_user
 )
-from app.schemas.user import UserCreate, UserLogin, Token, UserResponse
+from app.schemas.user import UserCreate, UserLogin, Token, UserResponse, UserLocationUpdate
 from .security import (
     create_access_token,
     get_current_user,
@@ -135,3 +135,28 @@ async def get_me(current_user: User = Depends(get_current_user)):
 async def logout(current_user: User = Depends(get_current_user)):
     """Logout user (client should discard token)"""
     return {"message": "Successfully logged out"}
+
+
+@router.put("/location", response_model=UserResponse)
+async def update_location(
+    location_data: UserLocationUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update user's GPS location"""
+    current_user.latitude = location_data.latitude
+    current_user.longitude = location_data.longitude
+    if location_data.city:
+        current_user.city = location_data.city
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        role=current_user.role,
+        is_verified=current_user.is_verified,
+        created_at=current_user.created_at
+    )
