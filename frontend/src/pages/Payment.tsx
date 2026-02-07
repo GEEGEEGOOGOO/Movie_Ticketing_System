@@ -71,7 +71,7 @@ export default function Payment() {
     return chunks ? chunks.join(' ') : cleaned
   }
 
-  const totalAmount = booking?.total_amount || selectedSeats?.reduce((sum, s) => sum + s.price, 0) || 0
+  const totalAmount = Number(booking?.total_amount) || selectedSeats?.reduce((sum, s) => sum + Number(s.price), 0) || 0
   const convenienceFee = (selectedSeats?.length || 0) * 1.5
   const taxes = totalAmount * 0.08
   const finalAmount = totalAmount + convenienceFee + taxes

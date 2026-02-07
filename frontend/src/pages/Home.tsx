@@ -9,6 +9,15 @@ export default function Home() {
   const navigate = useNavigate()
   const { coordinates } = useLocationStore()
 
+  const requireAuth = (path: string) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      navigate(path)
+      return
+    }
+    navigate(`/login?redirect=${encodeURIComponent(path)}`)
+  }
+
   const { data: moviesData, isLoading: moviesLoading } = useQuery({
     queryKey: ['movies'],
     queryFn: () => moviesAPI.getAll({ per_page: 10 }),
@@ -75,25 +84,25 @@ export default function Home() {
   const mockTheaters = [
     {
       id: 1,
-      name: 'AMC Empire 25',
-      address: '234 W 42nd St, New York, NY',
-      distance: '0.8 mi',
+      name: 'PVR INOX Forum Mall',
+      address: 'Forum Value Mall, Whitefield, Bangalore',
+      distance: '3.2 km',
       nextShowing: '10:30 AM',
       image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAY8Ni_vslfTfAPyv9oVr5tJ6P-r4zfCVjXlK8AYAArVOdGs1z9EVsG6dhUfKf3Ei2h1e5eIijIB1kCtQY-ue7AAn0aMZJqj2j_kaaIWL4sLp0MycNjuzpKKaNysGeGhQngebbn73QKNV6yBDhcLQ9LUfiHpID8_sAJjj5kacgXEU9-czJxsunntpb6a0iVfDrhXpKK8IJZLXyFeLKZ0yexEPJUrVuno5JMmbyZy9m5H8mKoRh-i2BSwRbpeSSOG74ow2bdNSZfhGc',
     },
     {
       id: 2,
-      name: 'Regal Battery Park',
-      address: '102 North End Ave, New York, NY',
-      distance: '1.2 mi',
+      name: 'Cinepolis Royal Meenakshi Mall',
+      address: 'Bannerghatta Road, Hulimavu, Bangalore',
+      distance: '5.1 km',
       nextShowing: '11:00 AM',
       image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBfD8FU70ntvrloBFuYsyeSpn0LghbH3pdUoAfzIsUfXMwhBfd9faOLkbY2orH9aVunTD0rdUy2otGTY4lSZ-uGlxkZoB73dfe3Bgla6FSt4quhToSEBtOx65ygK2R7f39mGe_UDSGhWt7Rjm-dFYtBOZXIgjITtNwEhSQYKI9C49PeQfj5KT4G_xvxjZn5OqM2gvNnREXpNVuNdh8zKulhC2jZyGLG3JZz_qPVGwFVYlcNyZ0lN5y_oTIN63kYQOzoS4HkN5_QJLs',
     },
     {
       id: 3,
-      name: 'Alamo Drafthouse',
-      address: '28 Liberty St, New York, NY',
-      distance: '2.5 mi',
+      name: 'INOX Garuda Mall',
+      address: 'Magrath Road, Ashok Nagar, Bangalore',
+      distance: '6.8 km',
       nextShowing: '10:45 AM',
       image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD7UfQSPeyxvz049vm0z8m8oUMMmojXyDoflhzIUfFeld1M1ESOKTUj26YkucWO3GZHjDD0sU2MtzSR2wUhpiNQ6w4l_h3GN17Z1j8LYLLodrNYifnh1RzBEhsIwIp4Q1qx9DLLXgoS2Kyv_8vFABO3XK9Mg8IfQVzO33o5N1CPWV4Yoj_AYPd3nP_h9RPqK00D7MnAfdwTmBtfU6lLBU7g_iCYmdeREqiZN3YWHfzMmSpyh60s-FEaF0DSvjVd2Q474KFN5mquatM',
     },
@@ -159,7 +168,7 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center gap-4 mt-2">
               <button 
-                onClick={() => navigate('/movies/3')}
+                onClick={() => requireAuth('/movies/3')}
                 className="flex items-center gap-2 h-12 px-8 bg-primary hover:bg-red-600 text-white rounded-lg font-bold text-sm transition-all transform hover:scale-105 shadow-lg shadow-red-900/30"
               >
                 <span className="material-symbols-outlined text-[20px]">confirmation_number</span>
@@ -258,10 +267,15 @@ export default function Home() {
                   </div>
                   <div className="p-6">
                     <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors mb-2">{theater.name}</h3>
-                    <p className="text-text-secondary text-sm font-body mb-4">{theater.address || `${theater.city}, NY`}</p>
+                    <p className="text-text-secondary text-sm font-body mb-4">{theater.address || theater.location || `${theater.city}`}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-white/10">
                       <div className="text-sm text-text-secondary font-body">Next: <span className="text-white font-bold">{theater.nextShowing || '10:30 AM'}</span></div>
-                      <button className="text-sm font-bold text-primary hover:text-white transition-colors">Showtimes</button>
+                      <button 
+                        onClick={() => navigate('/movies')}
+                        className="text-sm font-bold text-primary hover:text-white transition-colors"
+                      >
+                        Showtimes
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -289,7 +303,7 @@ export default function Home() {
                     <p className="text-text-secondary text-sm font-body mt-1">{movie.subtitle}</p>
                   </div>
                   <button 
-                    onClick={() => navigate(`/movies/${movie.id}`)}
+                    onClick={() => requireAuth(`/movies/${movie.id}`)}
                     className="mt-2 w-full h-12 rounded-xl bg-surface-highlight hover:bg-primary text-white text-sm font-bold transition-colors"
                   >
                     Book Tickets

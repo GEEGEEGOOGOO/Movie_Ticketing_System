@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { authAPI, pingAPI } from '../api/client'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, isAuthenticated } = useAuthStore()
+  const location = useLocation()
+  const { login, logout, isAuthenticated } = useAuthStore()
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,13 +15,35 @@ export default function Login() {
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; general?: string }>({})
   const [isLoading, setIsLoading] = useState(false)
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+  const [isReady, setIsReady] = useState(false)
 
-  // Redirect if already authenticated
+  // Check auth state on mount and redirect if already logged in
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/home')
+    const token = localStorage.getItem('token')
+    
+    // If no token, clear any stale auth state and show login
+    if (!token) {
+      if (isAuthenticated) {
+        logout()
+      }
+      setIsReady(true)
+      return
     }
-  }, [isAuthenticated, navigate])
+    
+    // If has token and authenticated, redirect
+    if (token && isAuthenticated) {
+      const params = new URLSearchParams(location.search)
+      const redirect = params.get('redirect')
+      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('/login')
+        ? decodeURIComponent(redirect)
+        : '/home'
+      navigate(safeRedirect, { replace: true })
+      return
+    }
+    
+    // If has token but not authenticated in store, show login (token may be invalid)
+    setIsReady(true)
+  }, [isAuthenticated, navigate, location.search, logout])
 
   // Backend health check
   useEffect(() => {
@@ -58,8 +81,8 @@ export default function Login() {
     
     if (!password) {
       newErrors.password = 'Password is required'
-    } else if (password.length < 3) {
-      newErrors.password = 'Password must be at least 3 characters'
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters'
     }
     
     if (isRegister && !name.trim()) {
@@ -74,23 +97,6 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      // Always use mock authentication for now (no backend required)
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      // Mock user
-      const mockUser = {
-        id: Math.floor(Math.random() * 10000),
-        email: email.trim().toLowerCase(),
-        full_name: name.trim() || email.split('@')[0] || 'User',
-        role: 'customer' as const,
-        is_active: true
-      }
-      const mockToken = 'mock-jwt-token-' + Date.now()
-      
-      login(mockUser, mockToken)
-      navigate('/home')
-      return
-
       if (isRegister) {
         await authAPI.register({
           email: email.trim().toLowerCase(),
@@ -104,18 +110,34 @@ export default function Login() {
       localStorage.setItem('token', authResponse.access_token)
       
       const user = await authAPI.getMe()
+      
+      const params = new URLSearchParams(location.search)
+      const redirect = params.get('redirect')
+      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('/login')
+        ? decodeURIComponent(redirect)
+        : '/home'
       login(user, authResponse.access_token)
-      navigate('/home')
+      navigate(safeRedirect, { replace: true })
       
     } catch (error: any) {
       let message = 'Authentication failed. Please try again.'
       
-      if (error?.response?.data?.detail) {
-        message = error.response.data.detail
+      const detail = error?.response?.data?.detail
+      if (detail) {
+        // Handle Pydantic validation errors (422) which come as array
+        if (Array.isArray(detail)) {
+          message = detail.map((err: any) => err.msg || err.message || String(err)).join(', ')
+        } else if (typeof detail === 'string') {
+          message = detail
+        } else if (typeof detail === 'object') {
+          message = detail.msg || detail.message || JSON.stringify(detail)
+        }
       } else if (error?.response?.status === 400) {
         message = isRegister ? 'Email already registered' : 'Invalid credentials'
       } else if (error?.response?.status === 401) {
         message = 'Invalid email or password'
+      } else if (error?.response?.status === 422) {
+        message = 'Invalid input. Please check your details.'
       } else if (!error?.response) {
         message = 'Cannot reach server. Is the backend running?'
         setBackendStatus('offline')
@@ -125,6 +147,15 @@ export default function Login() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading state while checking auth
+  if (!isReady) {
+    return (
+      <div className="bg-background-dark font-display text-white overflow-hidden h-screen w-full flex items-center justify-center">
+        <div className="animate-pulse text-primary-light">Loading...</div>
+      </div>
+    )
   }
 
   return (

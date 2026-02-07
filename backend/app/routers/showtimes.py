@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+from datetime import date as DateType
 
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -12,6 +13,7 @@ from app.schemas.movie import ShowtimeCreate, ShowtimeResponse, ShowtimeWithDeta
 from app.schemas.booking import ShowtimeSeats, SeatAvailability
 from app.crud import movie as crud_movie
 from app.crud import booking as crud_booking
+from app.crud.theater import calculate_distance
 from app.auth.security import get_current_user, require_role
 
 router = APIRouter(prefix="/showtimes", tags=["Showtimes"])
@@ -37,7 +39,9 @@ async def create_showtime(
 async def get_movie_showtimes(
     movie_id: int,
     city: Optional[str] = None,
-    date: Optional[datetime] = None,
+    date: Optional[DateType] = Query(None, alias="date"),
+    user_lat: Optional[float] = Query(None, description="User latitude for distance calc"),
+    user_lng: Optional[float] = Query(None, description="User longitude for distance calc"),
     db: Session = Depends(get_db)
 ):
     """Get all showtimes for a movie"""
@@ -45,7 +49,7 @@ async def get_movie_showtimes(
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     
-    showtimes = crud_movie.get_showtimes_by_movie(db, movie_id, city, date)
+    showtimes = crud_movie.get_showtimes_by_movie(db, movie_id, city, filter_date=date)
     
     # Enrich with details
     result = []
@@ -53,6 +57,10 @@ async def get_movie_showtimes(
         # Count available seats
         available = crud_booking.get_available_seats(db, st.id)
         available_count = sum(1 for s in available if s.is_available)
+        
+        theater = st.screen.theater
+        t_lat = float(theater.latitude) if theater.latitude else None
+        t_lng = float(theater.longitude) if theater.longitude else None
         
         result.append(ShowtimeWithDetails(
             id=st.id,
@@ -64,10 +72,20 @@ async def get_movie_showtimes(
             created_at=st.created_at,
             movie=st.movie,
             screen_name=st.screen.name,
-            theater_name=st.screen.theater.name,
-            theater_city=st.screen.theater.city,
+            theater_name=theater.name,
+            theater_city=theater.city,
+            theater_latitude=t_lat,
+            theater_longitude=t_lng,
             available_seats=available_count
         ))
+    
+    # Sort by distance if user location provided
+    if user_lat is not None and user_lng is not None:
+        def sort_key(s):
+            if s.theater_latitude is not None and s.theater_longitude is not None:
+                return calculate_distance(user_lat, user_lng, s.theater_latitude, s.theater_longitude)
+            return float('inf')
+        result.sort(key=sort_key)
     
     return result
 

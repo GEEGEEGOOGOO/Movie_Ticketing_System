@@ -5,8 +5,8 @@ Per ADR-003: ACID transactions with race condition handling
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_
-from typing import List, Optional
-from datetime import datetime, timedelta
+from typing import List, Optional, Any
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
 
@@ -21,6 +21,18 @@ def generate_booking_reference() -> str:
     timestamp = datetime.now().strftime("%Y%m%d")
     unique_id = uuid.uuid4().hex[:6].upper()
     return f"BK{timestamp}{unique_id}"
+
+
+def generate_refund_reference() -> str:
+    """Generate unique simulated refund reference"""
+    return f"RFND{uuid.uuid4().hex[:10].upper()}"
+
+
+def normalize_to_utc(dt: datetime) -> datetime:
+    """Normalize datetime to UTC for safe comparisons."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def get_available_seats(db: Session, showtime_id: int) -> List[SeatAvailability]:
@@ -76,8 +88,12 @@ def create_booking(
     if not showtime:
         return None
     
-    # Verify showtime is in the future
-    if showtime.start_time <= datetime.now():
+    # Verify showtime is in the future (handle timezone-aware/naive comparison)
+    now = datetime.now(timezone.utc)
+    showtime_time = showtime.start_time
+    if showtime_time.tzinfo is None:
+        showtime_time = showtime_time.replace(tzinfo=timezone.utc)
+    if showtime_time <= now:
         return None
     
     # Get seats and verify they exist and belong to the correct screen
@@ -179,8 +195,8 @@ def confirm_booking(db: Session, booking_id: int) -> Optional[Booking]:
     return booking
 
 
-def cancel_booking(db: Session, booking_id: int, user_id: int) -> Optional[Booking]:
-    """Cancel a booking (only by owner or before showtime)"""
+def cancel_booking(db: Session, booking_id: int, user_id: int) -> Optional[dict[str, Any]]:
+    """Cancel a booking and simulate refund details for paid bookings."""
     booking = db.query(Booking).filter(
         Booking.id == booking_id,
         Booking.user_id == user_id
@@ -193,18 +209,41 @@ def cancel_booking(db: Session, booking_id: int, user_id: int) -> Optional[Booki
         return None
     
     # Can only cancel before showtime
-    if booking.showtime.start_time <= datetime.now():
+    now_utc = datetime.now(timezone.utc)
+    showtime_start = normalize_to_utc(booking.showtime.start_time)
+    if showtime_start <= now_utc:
         return None
     
     booking.status = BookingStatus.CANCELLED
-    
-    # If payment exists and was successful, mark as refunded
+
+    refund = None
+    message = "Booking cancelled successfully."
+
+    # If payment exists and was successful, simulate a refund transaction
     if booking.payment and booking.payment.status == PaymentStatus.SUCCESS:
         booking.payment.status = PaymentStatus.REFUNDED
+        refund = {
+            "refund_reference": generate_refund_reference(),
+            "original_transaction_id": booking.payment.transaction_id,
+            "amount": booking.payment.amount,
+            "status": "processed",
+            "processed_at": now_utc,
+            "is_simulated": True,
+            "message": "Refund simulated successfully and marked as refunded."
+        }
+        message = "Booking cancelled. Refund simulated successfully."
+    elif booking.payment:
+        message = "Booking cancelled. No refund processed because payment was not successful."
+    else:
+        message = "Booking cancelled. No payment record found, so no refund was required."
     
     db.commit()
     db.refresh(booking)
-    return booking
+    return {
+        "booking": booking,
+        "refund": refund,
+        "message": message
+    }
 
 
 def expire_pending_bookings(db: Session) -> int:

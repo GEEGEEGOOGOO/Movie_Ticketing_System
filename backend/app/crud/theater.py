@@ -80,9 +80,15 @@ def get_theaters_nearby(db: Session, user_lat: float, user_lon: float, radius_km
     Get theaters within radius_km of user's location
     Uses Haversine formula to calculate distance
     """
+    # Fast bounding-box prefilter to reduce distance computations
+    lat_delta = radius_km / 111.0
+    lon_delta = radius_km / (111.0 * max(0.1, math.cos(math.radians(user_lat))))
+
     all_theaters = db.query(Theater).filter(
         Theater.latitude.isnot(None),
-        Theater.longitude.isnot(None)
+        Theater.longitude.isnot(None),
+        Theater.latitude.between(user_lat - lat_delta, user_lat + lat_delta),
+        Theater.longitude.between(user_lon - lon_delta, user_lon + lon_delta)
     ).all()
     
     nearby_theaters = []

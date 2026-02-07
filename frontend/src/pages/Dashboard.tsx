@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { bookingsAPI } from '../api/client'
-import type { Booking } from '../api/client'
+import type { Booking, BookingCancelResponse } from '../api/client'
 
 // Extended booking type for display
 interface DisplayBooking extends Booking {
@@ -14,6 +15,7 @@ interface DisplayBooking extends Booking {
 export default function Dashboard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [lastCancellation, setLastCancellation] = useState<BookingCancelResponse | null>(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['myBookings'],
@@ -23,10 +25,19 @@ export default function Dashboard() {
 
   // Cancel booking mutation
   const cancelMutation = useMutation({
-    mutationFn: (bookingId: number) => bookingsAPI.cancel(bookingId),
-    onSuccess: () => {
-      // Refresh bookings list after cancel
+    mutationFn: ({ bookingId, reason }: { bookingId: number; reason?: string }) =>
+      bookingsAPI.cancel(bookingId, reason),
+    onSuccess: (result) => {
+      setLastCancellation(result)
       queryClient.invalidateQueries({ queryKey: ['myBookings'] })
+
+      if (result.refund) {
+        alert(
+          `Booking cancelled. Simulated refund of $${Number(result.refund.amount).toFixed(2)} completed.\nRefund Ref: ${result.refund.refund_reference}`
+        )
+      } else {
+        alert(result.message)
+      }
     },
     onError: (error: Error) => {
       alert('Failed to cancel booking: ' + error.message)
@@ -35,7 +46,11 @@ export default function Dashboard() {
 
   const handleCancelBooking = (bookingId: number) => {
     if (confirm('Are you sure you want to cancel this booking?')) {
-      cancelMutation.mutate(bookingId)
+      const reasonInput = prompt('Optional: enter a cancellation reason')?.trim()
+      cancelMutation.mutate({
+        bookingId,
+        reason: reasonInput || undefined,
+      })
     }
   }
 
@@ -75,7 +90,11 @@ export default function Dashboard() {
     }
   ]
 
-  const displayBookings: DisplayBooking[] = data?.bookings || mockBookings
+  const rawBookings = (data?.bookings as DisplayBooking[] | undefined) || mockBookings
+  const displayBookings: DisplayBooking[] = rawBookings.map((booking) => ({
+    ...booking,
+    seats_display: booking.seats_display || booking.seats?.map((seat) => `${seat.row}${seat.number}`)
+  }))
 
   const breadcrumbs = [
     { label: 'Home', href: '/home' },
@@ -91,6 +110,8 @@ export default function Dashboard() {
       default: return 'text-text-secondary bg-white/5 border-white/10'
     }
   }
+
+  const formatAmount = (amount: number | string | undefined) => Number(amount || 0).toFixed(2)
 
   return (
     <div className="min-h-screen bg-background-dark">
@@ -111,6 +132,17 @@ export default function Dashboard() {
             Book Tickets
           </button>
         </div>
+
+        {lastCancellation && (
+          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/10 p-4">
+            <p className="text-white font-semibold">{lastCancellation.message}</p>
+            {lastCancellation.refund && (
+              <p className="text-text-secondary text-sm mt-1">
+                Refund Ref: <span className="font-mono text-primary">{lastCancellation.refund.refund_reference}</span> | Amount: ${formatAmount(lastCancellation.refund.amount)}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10">
@@ -145,7 +177,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xl sm:text-2xl font-bold text-white">
-                  ${displayBookings.reduce((sum, b) => sum + b.total_amount, 0).toFixed(2)}
+                  ${displayBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0).toFixed(2)}
                 </p>
                 <p className="text-text-secondary text-sm">Total Spent</p>
               </div>
@@ -220,7 +252,7 @@ export default function Dashboard() {
                             {booking.movie_title || 'Movie Title'}
                           </h3>
                           <p className="text-text-secondary text-sm">
-                            {booking.theater_name || 'Theater'} • {booking.screen_name || 'Screen'}
+                            {booking.theater_name || 'Theater'} | {booking.screen_name || 'Screen'}
                           </p>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(booking.status)}`}>
@@ -232,7 +264,7 @@ export default function Dashboard() {
                         <div>
                           <p className="text-text-secondary text-xs mb-1">Date & Time</p>
                           <p className="text-white text-sm">
-                            {booking.show_time 
+                            {booking.show_time
                               ? new Date(booking.show_time).toLocaleString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
@@ -255,9 +287,30 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-text-secondary text-xs mb-1">Amount</p>
-                          <p className="text-green-400 text-sm font-bold">${booking.total_amount.toFixed(2)}</p>
+                          <p className="text-green-400 text-sm font-bold">${formatAmount(booking.total_amount)}</p>
                         </div>
                       </div>
+
+                      {booking.status === 'cancelled' && (
+                        <div className="mb-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
+                          <p className="text-sm font-semibold text-yellow-300">Cancellation Processed</p>
+                          {booking.payment?.status === 'refunded' ? (
+                            <p className="text-xs text-text-secondary mt-1">
+                              Simulated refund completed for ${formatAmount(booking.payment.amount)}
+                              {booking.payment.transaction_id ? ` against payment ${booking.payment.transaction_id}` : ''}.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-text-secondary mt-1">
+                              No refund was required for this cancellation.
+                            </p>
+                          )}
+                          {lastCancellation?.booking.id === booking.id && lastCancellation.refund && (
+                            <p className="text-xs text-primary mt-1 font-mono">
+                              Refund Ref: {lastCancellation.refund.refund_reference}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       <div className="flex gap-3">
                         {booking.status === 'confirmed' && (
@@ -270,23 +323,25 @@ export default function Dashboard() {
                               <span className="material-symbols-outlined text-base">print</span>
                               Print
                             </button>
-                            <button 
-                              onClick={() => handleCancelBooking(booking.id)}
-                              disabled={cancelMutation.isPending}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-lg text-red-400 text-sm transition-colors disabled:opacity-50"
-                            >
-                              <span className="material-symbols-outlined text-base">cancel</span>
-                              {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
-                            </button>
                           </>
                         )}
-                        <button 
+                        {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                          <button
+                            onClick={() => handleCancelBooking(booking.id)}
+                            disabled={cancelMutation.isPending}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-lg text-red-400 text-sm transition-colors disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-base">cancel</span>
+                            {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
+                          </button>
+                        )}
+                        <button
                           onClick={() => navigate(`/booking/confirmation/${booking.id}`, {
                             state: {
                               bookingReference: booking.booking_reference,
                               transactionId: String(booking.id),
                               selectedSeats: booking.seats_display || [],
-                              totalAmount: booking.total_amount,
+                              totalAmount: Number(booking.total_amount || 0),
                               movieTitle: booking.movie_title,
                               theaterName: booking.theater_name,
                               screenName: booking.screen_name,

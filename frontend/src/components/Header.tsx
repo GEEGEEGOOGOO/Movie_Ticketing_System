@@ -1,7 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useLocationStore } from '../store/locationStore'
-import LocationModal from './LocationModal'
 
 interface Breadcrumb {
   label: string
@@ -17,7 +16,6 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showLocationModal, setShowLocationModal] = useState(false)
   const { city, requestLocationAndSave, isLoading } = useLocationStore()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isLoggedIn = !!localStorage.getItem('token')
@@ -29,10 +27,8 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
   }
 
   const handleLocationClick = async () => {
-    // First try to get GPS location
+    // Directly request GPS location
     await requestLocationAndSave()
-    // If GPS fails or user wants to change, show modal
-    setShowLocationModal(true)
   }
 
   const getInitials = (name: string) => {
@@ -47,7 +43,7 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
       <div className="flex items-center justify-between px-6 sm:px-10 lg:px-16 py-4 w-full">
         <div className="flex items-center gap-8 lg:gap-12">
           {/* Mobile Menu Button */}
-          <button 
+          <button
             className="lg:hidden text-white"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
@@ -80,7 +76,7 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
             </div>
           ) : (
             <nav className="hidden lg:flex items-center gap-8">
-              <button 
+              <button
                 onClick={handleLocationClick}
                 disabled={isLoading}
                 className="text-sm font-medium text-primary-light hover:text-white transition-colors flex items-center gap-1.5 disabled:opacity-50"
@@ -99,9 +95,9 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
         <div className="flex items-center gap-4 lg:gap-6">
           {/* Search */}
           {showSearch && !hasBreadcrumbs && (
-            <div className="hidden md:flex items-center bg-white/5 hover:bg-white/10 rounded-lg px-4 py-2.5 w-64 xl:w-80 border border-white/10 focus-within:border-primary-light/50 transition-all">
+            <div className="hidden md:flex items-center bg-white/5 hover:bg-white/10 rounded-lg px-4 py-2.5 w-[32rem] xl:w-[40rem] border border-white/10 focus-within:border-primary-light/50 transition-all">
               <span className="material-symbols-outlined text-text-secondary text-[20px]">search</span>
-              <input 
+              <input
                 className="bg-transparent border-none focus:ring-0 text-sm text-white placeholder-text-secondary w-full ml-2.5 outline-none font-body"
                 placeholder="Search movies, cinemas..."
                 type="text"
@@ -123,13 +119,16 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
           {/* User Menu */}
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-3 hover:opacity-90 transition-opacity"
+              >
                 <div className="w-8 h-8 rounded-full bg-surface-highlight flex items-center justify-center text-xs font-bold text-text-secondary">
                   {getInitials(user.full_name || user.name)}
                 </div>
                 <span className="hidden md:block text-sm text-white">{user.full_name || user.name}</span>
-              </div>
-              <button 
+              </button>
+              <button
                 onClick={handleLogout}
                 className="text-sm text-text-secondary hover:text-white transition-colors"
               >
@@ -137,7 +136,7 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
               </button>
             </div>
           ) : (
-            <Link 
+            <Link
               to="/login"
               className="flex items-center justify-center rounded-lg h-10 px-6 bg-primary hover:bg-red-600 transition-colors text-white text-sm font-bold tracking-wide"
             >
@@ -154,7 +153,7 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
             <div className="flex flex-col gap-2">
               <div className="flex items-center bg-surface-highlight rounded-lg px-3 py-2 w-full border border-transparent focus-within:border-primary/50 transition-colors mb-2">
                 <span className="material-symbols-outlined text-text-secondary">search</span>
-                <input 
+                <input
                   className="bg-transparent border-none focus:ring-0 text-sm text-white placeholder-text-secondary w-full ml-2 outline-none"
                   placeholder="Search movies..."
                   type="text"
@@ -163,7 +162,7 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
                   onKeyDown={(e) => e.key === 'Enter' && searchQuery && navigate(`/movies?q=${searchQuery}`)}
                 />
               </div>
-              <button 
+              <button
                 onClick={handleLocationClick}
                 disabled={isLoading}
                 className="text-base font-medium text-white py-2 border-b border-surface-highlight flex items-center gap-2 disabled:opacity-50"
@@ -174,13 +173,13 @@ export default function Header({ showSearch = true, breadcrumbs }: HeaderProps) 
               <Link to="/movies" className="text-base font-medium text-white py-2 border-b border-surface-highlight">Movies</Link>
               <Link to="/home" className="text-base font-medium text-white py-2 border-b border-surface-highlight">Cinemas</Link>
               <Link to="/home" className="text-base font-medium text-white py-2">Offers</Link>
+              {isLoggedIn && (
+                <Link to="/profile" className="text-base font-medium text-white py-2">Profile</Link>
+              )}
             </div>
           )}
         </div>
       )}
-      
-      {/* Location Modal */}
-      <LocationModal isOpen={showLocationModal} onClose={() => setShowLocationModal(false)} />
     </header>
   )
 }

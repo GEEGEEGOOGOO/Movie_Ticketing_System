@@ -3,8 +3,8 @@ Movie and Showtime CRUD operations
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
-from typing import List, Optional
-from datetime import datetime, timedelta
+from typing import List, Optional, Union
+from datetime import datetime, timedelta, date
 
 from app.models.movie import Movie, Showtime, Genre, Language
 from app.models.theater import Screen, Theater
@@ -141,7 +141,7 @@ def get_showtimes_by_movie(
     db: Session,
     movie_id: int,
     city: Optional[str] = None,
-    date: Optional[datetime] = None
+    filter_date: Optional[Union[date, datetime]] = None
 ) -> List[Showtime]:
     """Get all showtimes for a movie with optional filters"""
     query = db.query(Showtime).join(Screen).join(Theater).filter(
@@ -152,9 +152,12 @@ def get_showtimes_by_movie(
     if city:
         query = query.filter(Theater.city.ilike(f"%{city}%"))
     
-    if date:
-        # Filter by date (same day)
-        start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    if filter_date:
+        # Convert date to datetime if needed
+        if isinstance(filter_date, date) and not isinstance(filter_date, datetime):
+            start_of_day = datetime.combine(filter_date, datetime.min.time())
+        else:
+            start_of_day = filter_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = start_of_day + timedelta(days=1)
         query = query.filter(
             Showtime.start_time >= start_of_day,

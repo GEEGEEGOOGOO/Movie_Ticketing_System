@@ -39,6 +39,9 @@ class TheaterResponse(BaseModel):
     name: str
     location: str
     city: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    distance_km: Optional[float] = None
     owner_id: int
     created_at: datetime
 

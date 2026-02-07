@@ -5,11 +5,25 @@ import { moviesAPI } from '../api/client'
 import type { Movie, Showtime } from '../api/client'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import { useLocationStore } from '../store/locationStore'
+import { calculateDistance, formatDistance, getDirectionsUrl } from '../hooks/useGeolocation'
 
 export default function MovieDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const { coordinates, city, isLoading: geoLoading, error: geoError, requestLocationAndSave } = useLocationStore()
+  const userLat = coordinates?.latitude ?? null
+  const userLng = coordinates?.longitude ?? null
+
+  const requireAuth = (path: string) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      navigate(path)
+      return
+    }
+    navigate(`/login?redirect=${encodeURIComponent(path)}`)
+  }
 
   const { data: movie, isLoading: movieLoading } = useQuery({
     queryKey: ['movie', id],
@@ -18,8 +32,17 @@ export default function MovieDetail() {
   })
 
   const { data: showtimes, isLoading: showtimesLoading } = useQuery({
-    queryKey: ['showtimes', id, selectedDate],
-    queryFn: () => moviesAPI.getShowtimes(Number(id), undefined, selectedDate),
+    queryKey: ['showtimes', id, selectedDate, userLat, userLng],
+    queryFn: () => {
+      // Build params including user location for distance sorting
+      const params: Record<string, any> = {}
+      if (selectedDate) params.date = selectedDate
+      if (userLat && userLng) {
+        params.user_lat = userLat
+        params.user_lng = userLng
+      }
+      return moviesAPI.getShowtimes(Number(id), undefined, selectedDate, userLat ?? undefined, userLng ?? undefined)
+    },
     enabled: !!id,
   })
 
@@ -111,11 +134,33 @@ export default function MovieDetail() {
   const showtimesByTheater = displayShowtimes.reduce((acc, st) => {
     const theaterName = st.theater_name || st.screen?.theater?.name || 'Unknown Theater'
     if (!acc[theaterName]) {
-      acc[theaterName] = { theater: { name: theaterName, city: st.theater_city || st.screen?.theater?.city }, showtimes: [] }
+      acc[theaterName] = { 
+        theater: { 
+          name: theaterName, 
+          city: st.theater_city || st.screen?.theater?.city,
+          latitude: st.theater_latitude ?? null,
+          longitude: st.theater_longitude ?? null,
+        }, 
+        showtimes: [] 
+      }
     }
     acc[theaterName].showtimes.push(st)
     return acc
   }, {} as { [key: string]: { theater: any; showtimes: Showtime[] } })
+
+  // Sort theaters by distance if user location is available
+  const sortedTheaters = Object.entries(showtimesByTheater).sort(([, a], [, b]) => {
+    if (userLat && userLng) {
+      const distA = a.theater.latitude && a.theater.longitude
+        ? calculateDistance(userLat, userLng, a.theater.latitude, a.theater.longitude)
+        : Infinity
+      const distB = b.theater.latitude && b.theater.longitude
+        ? calculateDistance(userLat, userLng, b.theater.latitude, b.theater.longitude)
+        : Infinity
+      return distA - distB
+    }
+    return 0
+  })
 
   if (movieLoading) {
     return (
@@ -187,10 +232,25 @@ export default function MovieDetail() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap justify-center lg:justify-start gap-4 mt-8">
-                <button className="flex items-center gap-3 px-8 py-4 rounded-full bg-surface-highlight hover:bg-surface-highlight/80 text-white font-semibold transition-colors">
-                  <span className="material-symbols-outlined text-2xl">play_arrow</span>
-                  Watch Trailer
-                </button>
+                {displayMovie.trailer_url ? (
+                  <a 
+                    href={displayMovie.trailer_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-surface-highlight hover:bg-surface-highlight/80 text-white font-semibold transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-2xl">play_arrow</span>
+                    Watch Trailer
+                  </a>
+                ) : (
+                  <button 
+                    onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(displayMovie.title + ' trailer')}`, '_blank')}
+                    className="flex items-center gap-3 px-8 py-4 rounded-full bg-surface-highlight hover:bg-surface-highlight/80 text-white font-semibold transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-2xl">play_arrow</span>
+                    Watch Trailer
+                  </button>
+                )}
                 <button className="flex items-center justify-center w-14 h-14 rounded-full bg-surface-dark hover:bg-surface-highlight text-white transition-colors">
                   <span className="material-symbols-outlined text-2xl">favorite_border</span>
                 </button>
@@ -204,7 +264,34 @@ export default function MovieDetail() {
 
         {/* Showtimes Section */}
         <div className="px-6 sm:px-10 lg:px-16 py-12 lg:py-16">
-          <h2 className="text-white text-2xl lg:text-3xl font-bold mb-8">Select Showtime</h2>
+          <h2 className="text-white text-2xl lg:text-3xl font-bold mb-4">Select Showtime</h2>
+
+          {/* Location Status Banner */}
+          <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-surface-dark/60 border border-white/5">
+            {geoLoading ? (
+              <>
+                <span className="material-symbols-outlined text-primary animate-pulse">my_location</span>
+                <span className="text-text-secondary text-sm">Detecting your location...</span>
+              </>
+            ) : userLat && userLng ? (
+              <>
+                <span className="material-symbols-outlined text-green-400">my_location</span>
+                <span className="text-text-secondary text-sm">
+                  📍 {city || 'Your location'} — Showing nearby theaters sorted by distance
+                </span>
+                <button onClick={() => requestLocationAndSave()} className="ml-auto text-primary text-xs hover:underline">Refresh</button>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-yellow-400">location_off</span>
+                <span className="text-text-secondary text-sm">{geoError || 'Enable location to see nearby theaters'}</span>
+                <button onClick={() => requestLocationAndSave()} className="ml-auto text-primary text-sm hover:underline flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">my_location</span>
+                  Use My Location
+                </button>
+              </>
+            )}
+          </div>
 
           {/* Date Selector */}
           <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
@@ -243,16 +330,45 @@ export default function MovieDetail() {
             </div>
           ) : (
             <div className="space-y-6">
-              {Object.entries(showtimesByTheater).map(([theaterName, { theater, showtimes: sts }]) => (
+              {sortedTheaters.map(([theaterName, { theater, showtimes: sts }]) => {
+                const hasCoords = theater.latitude && theater.longitude
+                const distance = hasCoords && userLat && userLng
+                  ? calculateDistance(userLat, userLng, theater.latitude, theater.longitude)
+                  : null
+
+                return (
                 <div key={theaterName} className="glass-panel rounded-xl p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div>
                       <h3 className="text-white font-bold text-xl">{theaterName}</h3>
                       <p className="text-text-secondary">{theater?.city || 'City'}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-text-secondary">location_on</span>
-                      <span className="text-text-secondary">2.5 km</span>
+                    <div className="flex items-center gap-3">
+                      {distance !== null ? (
+                        <span className="flex items-center gap-1.5 text-text-secondary">
+                          <span className="material-symbols-outlined text-lg">location_on</span>
+                          <span className="font-medium">{formatDistance(distance)}</span>
+                        </span>
+                      ) : geoLoading ? (
+                        <span className="text-text-secondary text-sm">Locating...</span>
+                      ) : geoError ? (
+                        <button onClick={() => requestLocationAndSave()} className="text-primary text-sm hover:underline flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">my_location</span>
+                          Enable location
+                        </button>
+                      ) : null}
+                      {hasCoords && (
+                        <a
+                          href={getDirectionsUrl(theater.latitude, theater.longitude, theaterName)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
+                          title="Get directions on Google Maps"
+                        >
+                          <span className="material-symbols-outlined text-lg">directions</span>
+                          Directions
+                        </a>
+                      )}
                     </div>
                   </div>
                   
@@ -260,7 +376,7 @@ export default function MovieDetail() {
                     {sts.map((st) => (
                       <button
                         key={st.id}
-                        onClick={() => navigate(`/booking/seats/${st.id}`)}
+                        onClick={() => requireAuth(`/booking/seats/${st.id}`)}
                         className="px-6 py-3 rounded-lg border border-surface-highlight hover:border-primary hover:text-primary text-white font-semibold transition-colors"
                       >
                         {formatTime(st.start_time)}
@@ -268,9 +384,10 @@ export default function MovieDetail() {
                     ))}
                   </div>
                 </div>
-              ))}
+                )
+              })}
 
-              {Object.keys(showtimesByTheater).length === 0 && (
+              {sortedTheaters.length === 0 && (
                 <div className="text-center py-16">
                   <span className="material-symbols-outlined text-6xl text-text-secondary mb-4">event_busy</span>
                   <p className="text-white text-xl font-semibold mb-2">No showtimes available</p>

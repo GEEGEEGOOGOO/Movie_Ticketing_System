@@ -116,6 +116,8 @@ class ShowtimeWithDetails(ShowtimeResponse):
     screen_name: str
     theater_name: str
     theater_city: str
+    theater_latitude: Optional[float] = None
+    theater_longitude: Optional[float] = None
     available_seats: int
 
 

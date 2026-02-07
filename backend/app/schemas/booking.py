@@ -138,10 +138,27 @@ class PaymentConfirmation(BaseModel):
 
 # --- Cancel Booking ---
 
+class RefundSimulation(BaseModel):
+    """Schema for simulated refund details returned during cancellation"""
+    refund_reference: str
+    original_transaction_id: Optional[str] = None
+    amount: Decimal
+    status: str  # "processed"
+    processed_at: datetime
+    is_simulated: bool = True
+    message: str
+
+
 class BookingCancel(BaseModel):
     """Schema for cancelling a booking"""
-    booking_id: int
     reason: Optional[str] = None
+
+
+class BookingCancelResponse(BaseModel):
+    """Schema for cancellation response with refund simulation details"""
+    booking: BookingResponse
+    refund: Optional[RefundSimulation] = None
+    message: str
 
 
 # Update forward references

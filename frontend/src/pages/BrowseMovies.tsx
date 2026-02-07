@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { moviesAPI } from '../api/client'
@@ -8,12 +8,22 @@ import Footer from '../components/Footer'
 
 export default function BrowseMovies() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedGenre, setSelectedGenre] = useState('All')
   const [selectedLanguage, setSelectedLanguage] = useState('All')
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 500) // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   const { data: moviesData, isLoading } = useQuery({
-    queryKey: ['movies'],
-    queryFn: () => moviesAPI.getAll({ per_page: 50 }),
+    queryKey: ['movies', debouncedSearch],
+    queryFn: () => moviesAPI.getAll({ per_page: 50, search: debouncedSearch || undefined }),
   })
 
   const movies = moviesData?.movies || []
@@ -39,8 +49,10 @@ export default function BrowseMovies() {
   const genres = ['All', ...new Set(displayMovies.map(m => m.genre).filter(Boolean))]
   const languages = ['All', ...new Set(displayMovies.map(m => m.language).filter(Boolean))]
 
+  // Apply filters (search is already done by backend if using real API)
   const filteredMovies = displayMovies.filter(movie => {
-    const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+    // Skip search filter for API results (already filtered by backend)
+    const matchesSearch = movies.length > 0 ? true : movie.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesGenre = selectedGenre === 'All' || movie.genre === selectedGenre
     const matchesLanguage = selectedLanguage === 'All' || movie.language === selectedLanguage
     return matchesSearch && matchesGenre && matchesLanguage

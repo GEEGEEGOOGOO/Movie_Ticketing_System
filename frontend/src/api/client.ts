@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:8001'
+const API_BASE_URL = 'http://localhost:8002'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -23,14 +23,17 @@ apiClient.interceptors.request.use(
   }
 )
 
-// Handle token expiration
+// Handle token expiration - only redirect if not already on login page
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      // Don't redirect if already on login page to avoid loop
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -102,6 +105,8 @@ export interface Showtime {
   screen_name?: string
   theater_name?: string
   theater_city?: string
+  theater_latitude?: number
+  theater_longitude?: number
   available_seats?: number
   screen?: Screen & { theater?: Theater }
 }
@@ -167,6 +172,22 @@ export interface PaymentConfirmation {
   transaction_id: string
   amount: number
   status: string
+  message: string
+}
+
+export interface RefundSimulation {
+  refund_reference: string
+  original_transaction_id?: string | null
+  amount: number
+  status: 'processed'
+  processed_at: string
+  is_simulated: boolean
+  message: string
+}
+
+export interface BookingCancelResponse {
+  booking: Booking
+  refund?: RefundSimulation | null
   message: string
 }
 
@@ -238,7 +259,7 @@ export const authAPI = {
 // ==================== Movies API ====================
 
 export const moviesAPI = {
-  getAll: async (params?: { genre?: string; language?: string; page?: number; per_page?: number }): Promise<{ movies: Movie[]; total: number }> => {
+  getAll: async (params?: { genre?: string; language?: string; page?: number; per_page?: number; search?: string }): Promise<{ movies: Movie[]; total: number }> => {
     const response = await apiClient.get('/api/movies/', { params })
     return response.data
   },
@@ -248,8 +269,15 @@ export const moviesAPI = {
     return response.data
   },
 
-  getShowtimes: async (movieId: number, city?: string, date?: string): Promise<Showtime[]> => {
-    const response = await apiClient.get(`/api/showtimes/movie/${movieId}`, { params: { city, date } })
+  getShowtimes: async (movieId: number, city?: string, date?: string, userLat?: number, userLng?: number): Promise<Showtime[]> => {
+    const params: Record<string, any> = {}
+    if (city) params.city = city
+    if (date) params.date = date
+    if (userLat !== undefined && userLng !== undefined) {
+      params.user_lat = userLat
+      params.user_lng = userLng
+    }
+    const response = await apiClient.get(`/api/showtimes/movie/${movieId}`, { params })
     return response.data
   },
 
@@ -339,8 +367,11 @@ export const bookingsAPI = {
     return response.data
   },
 
-  cancel: async (id: number): Promise<Booking> => {
-    const response = await apiClient.post<Booking>(`/api/bookings/${id}/cancel`)
+  cancel: async (id: number, reason?: string): Promise<BookingCancelResponse> => {
+    const response = await apiClient.post<BookingCancelResponse>(
+      `/api/bookings/${id}/cancel`,
+      reason ? { reason } : undefined
+    )
     return response.data
   },
 

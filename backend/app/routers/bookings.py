@@ -11,7 +11,7 @@ from app.models.user import User
 from app.schemas.booking import (
     BookingCreate, BookingResponse, BookingDetail, BookingList,
     PaymentCreate, PaymentResponse, PaymentConfirmation,
-    BookingSeatResponse
+    BookingSeatResponse, BookingCancel, BookingCancelResponse
 )
 from app.crud import booking as crud_booking
 from app.crud import movie as crud_movie
@@ -183,20 +183,28 @@ async def get_booking_by_reference(
     )
 
 
-@router.post("/{booking_id}/cancel", response_model=BookingResponse)
+@router.post("/{booking_id}/cancel", response_model=BookingCancelResponse)
 async def cancel_booking(
     booking_id: int,
+    cancel_data: BookingCancel | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Cancel a booking"""
-    booking = crud_booking.cancel_booking(db, booking_id, current_user.id)
-    if not booking:
+    cancellation_result = crud_booking.cancel_booking(db, booking_id, current_user.id)
+    if not cancellation_result:
         raise HTTPException(
             status_code=400,
             detail="Cannot cancel booking. It may not exist, already cancelled, or showtime has passed."
         )
-    return booking
+    
+    if cancel_data and cancel_data.reason:
+        cancellation_result["message"] = (
+            f"{cancellation_result['message']} "
+            f"Cancellation reason noted: {cancel_data.reason}"
+        )
+    
+    return cancellation_result
 
 
 # --- Payment Endpoints ---
